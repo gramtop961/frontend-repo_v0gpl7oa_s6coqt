@@ -4,6 +4,23 @@ import HomePage from './components/HomePage';
 import ChatPage from './components/ChatPage';
 import SettingsPage from './components/SettingsPage';
 
+function useLocalStorage(key, initialValue) {
+  const [state, setState] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch {}
+  }, [key, state]);
+  return [state, setState];
+}
+
 export default function App() {
   const [route, setRoute] = useState('home');
   const [started, setStarted] = useState(false);
@@ -26,6 +43,8 @@ export default function App() {
     swearing: 'Mild',
   });
 
+  const [chats, setChats] = useLocalStorage('vibe_chats', []);
+
   const canChat = useMemo(() => !!figureId && (name?.trim()?.length || 0) > 0, [figureId, name]);
 
   useEffect(() => {
@@ -43,6 +62,30 @@ export default function App() {
     setRoute(key);
   };
 
+  const openChat = (chat) => {
+    setFigureId(chat.figureId || null);
+    setName(chat.name || '');
+    setStarted(true);
+    navigate('chat');
+  };
+
+  const createChat = () => {
+    if (!canChat) return;
+    const newChat = {
+      id: `chat_${Date.now()}`,
+      name,
+      figureId,
+      updatedAt: Date.now(),
+      lastMessage: '',
+      useMemory,
+      traits,
+      settings,
+    };
+    setChats((prev) => [newChat, ...prev]);
+    setStarted(true);
+    navigate('chat');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-100">
       <Navbar current={route} onNavigate={navigate} />
@@ -50,10 +93,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-6 md:py-10 space-y-8">
         {route === 'home' && (
           <HomePage
-            onStart={() => {
-              setStarted(true);
-              navigate('chat');
-            }}
+            onStart={createChat}
             gender={gender}
             setGender={setGender}
             figureId={figureId}
@@ -64,6 +104,8 @@ export default function App() {
             setUseMemory={setUseMemory}
             traits={traits}
             setTraits={setTraits}
+            chats={chats}
+            onOpenChat={openChat}
           />
         )}
 
