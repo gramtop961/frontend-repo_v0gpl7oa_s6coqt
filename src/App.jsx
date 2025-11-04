@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import Hero3D from './components/Hero3D';
-import FigureSelector from './components/FigureSelector';
-import SettingsPanel from './components/SettingsPanel';
-import ChatInterface from './components/ChatInterface';
+import React, { useEffect, useMemo, useState } from 'react';
+import Navbar from './components/Navbar';
+import HomePage from './components/HomePage';
+import ChatPage from './components/ChatPage';
+import SettingsPage from './components/SettingsPage';
 
 export default function App() {
+  const [route, setRoute] = useState('home');
   const [started, setStarted] = useState(false);
   const [gender, setGender] = useState('any');
   const [figureId, setFigureId] = useState(null);
@@ -27,52 +28,61 @@ export default function App() {
 
   const canChat = useMemo(() => !!figureId && (name?.trim()?.length || 0) > 0, [figureId, name]);
 
+  useEffect(() => {
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace('#', '').replace('/', '') || 'home';
+      setRoute(hash);
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, []);
+
+  const navigate = (key) => {
+    window.location.hash = `/${key}`;
+    setRoute(key);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-100">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-10 space-y-8">
-        <Hero3D onGetStarted={() => setStarted(true)} />
+      <Navbar current={route} onNavigate={navigate} />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <FigureSelector
+      <main className="max-w-6xl mx-auto px-4 py-6 md:py-10 space-y-8">
+        {route === 'home' && (
+          <HomePage
+            onStart={() => {
+              setStarted(true);
+              navigate('chat');
+            }}
             gender={gender}
             setGender={setGender}
             figureId={figureId}
             setFigureId={setFigureId}
-            traits={traits}
-            setTraits={setTraits}
             name={name}
             setName={setName}
             useMemory={useMemory}
             setUseMemory={setUseMemory}
+            traits={traits}
+            setTraits={setTraits}
           />
-
-          <SettingsPanel settings={settings} setSettings={setSettings} />
-        </div>
-
-        <ChatInterface
-          active={started && canChat}
-          figureId={figureId}
-          name={name || 'Companion'}
-          settings={settings}
-          traits={traits}
-        />
-
-        {!canChat && (
-          <div className="text-center text-sm text-gray-600">
-            Pick a gender, choose a figure, and give your companion a name to start chatting.
-          </div>
         )}
 
-        {useMemory ? (
-          <div className="text-center text-xs text-gray-500">
-            Memory: enabled — your companion will remember preferences across sessions.
-          </div>
-        ) : (
-          <div className="text-center text-xs text-gray-500">
-            Memory: off — this chat treats you as a new friend.
-          </div>
+        {route === 'chat' && (
+          <ChatPage
+            active={started && canChat}
+            figureId={figureId}
+            name={name || 'Companion'}
+            settings={settings}
+            traits={traits}
+            canChat={canChat}
+            useMemory={useMemory}
+          />
         )}
-      </div>
+
+        {route === 'settings' && (
+          <SettingsPage settings={settings} setSettings={setSettings} />
+        )}
+      </main>
     </div>
   );
 }
